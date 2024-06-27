@@ -1,5 +1,8 @@
 -- TODO: lazy.nvim integration ?
 -- TODO: add before|after_setup ?
+-- TODO: add required plugins
+--       * alpha nvim
+--       * nvin-lint
 
 function _G.dump(...)
   local objects = vim.tbl_map(vim.inspect, {...})
