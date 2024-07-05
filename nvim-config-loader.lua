@@ -1,6 +1,7 @@
 -- TODO: lazy.nvim/vim-pack integration ?
 -- TODO: add before|after_setup ?
--- TODO:
+--
+-- TODO: add cool checkhealth with main settings detection
 
 function _G.dump(...)
   local objects = vim.tbl_map(vim.inspect, {...})
@@ -9,36 +10,32 @@ end
 
 local NvimConfigLoader = {
   profile_loads        = 0,
+  presets              = {},
 
   colorscheme          = 'default',
   bg                   = 'light',
 
   -- Vim plug bundle path
-  vim_plug_bundle_path = '~/.vim/bundle',
+  vim_plug_bundle_path = nil,
 
   -- Additional .vim or .lua config sources from ~/.vim/ like:
-  --  ~/.vim/completion.lua
-  --  ~/.vim/lsp.lua
-  --
-  -- @example
-  --  additional_config_files = { 'lsp.lua' }
+  --  completion.lua
+  --  lsp.lua
   additional_config_files = {},
-
-  -- TODO: RENAME use_nvim_linter ?
-  use_lint             = {},
-  -- TODO: add full setup abilitiy
-  -- TODO: RENAME use_nvim_treesitter ?
-  use_treesitter       = {},
-
-  plugins_configs_default_templates = nil,
-
-  start_dashboard      = {},
-  keymaps              = {},
-  autocommands         = {},
-  vim_plug_bundle      = {},
 
   vim_options          = {},
   vim_globals          = {},
+
+  vim_plug_bundle      = {},
+
+  keymaps              = {},
+  autocommands         = {},
+
+  -- TODO: default presets
+  use_lint             = {},
+  use_treesitter       = {},
+  start_dashboard      = {},
+
 
   vim_files_path = function()
     local path = vim.fn.resolve(vim.fn.expand('<sfile>:p'))
@@ -59,15 +56,31 @@ local NvimConfigLoader = {
 
     vim.call('plug#begin', bundle_path)
 
+    local load_plugin = function(data)
+      if type(data) == 'string' then
+        Plug(data)
+      elseif type(data) == 'table' then
+        Plug(unpack(data))
+      end
+    end
+
+    -- load presets bundle
+    if type(self.presets) == 'table' then
+      for _, preset in pairs(self.presets) do
+        if type(preset.vim_plug_bundle) == 'table' then
+          for _, plugin_data in ipairs(preset.vim_plug_bundle) do
+            load_plugin(plugin_data)
+          end
+        end
+      end
+    end
+
+    -- load user defined bundle
     for _, group_bundle in ipairs(bundle) do
       local plugins = group_bundle.plugins or {}
 
       for _, plugin_data in ipairs(plugins) do
-        if type(plugin_data) == "string" then
-          Plug(plugin_data)
-        elseif type(plugin_data) == 'table' then
-          Plug(unpack(plugin_data))
-        end
+        load_plugin(plugin_data)
       end
     end
 
@@ -75,7 +88,7 @@ local NvimConfigLoader = {
   end,
 
   load_additional_config_files = function(self)
-    local opt = self.additional_vim_config_files
+    local opt = self.additional_config_files
     if type(opt) ~= "table" then return end
 
     for _, setting_file in ipairs(opt) do
@@ -134,20 +147,34 @@ local NvimConfigLoader = {
   end,
 
   load_autocommands = function(self)
+    local create_autocmd = function(cmd, augroup)
+      vim.api.nvim_create_autocmd(cmd.event, {
+       pattern  = cmd.pattern,
+       group    = augroup,
+       command  = cmd.command,
+       callback = cmd.callback,
+      })
+    end
+
+    -- load presets bundle
+    if type(self.presets) == 'table' then
+      for group, preset in pairs(self.presets) do
+        local augroup = vim.api.nvim_create_augroup(group, { clear = true })
+
+        if type(preset.autocommands) == 'table' then
+          for _, cmd in ipairs(preset.autocommands) do create_autocmd(cmd, augroup) end
+        end
+      end
+    end
+
+    -- load user defined bundle
     local opt = self.autocommands
     if type(opt) ~= "table" then return end
 
     for group, commands in pairs(opt) do
       local augroup = vim.api.nvim_create_augroup(group, { clear = true })
 
-      for _, cmd in ipairs(commands) do
-        vim.api.nvim_create_autocmd(cmd.event, {
-         pattern  = cmd.pattern,
-         group    = augroup,
-         command  = cmd.command,
-         callback = cmd.callback,
-        })
-      end
+      for _, cmd in ipairs(commands) do create_autocmd(cmd, augroup) end
     end
   end,
 
@@ -160,73 +187,15 @@ local NvimConfigLoader = {
     end
   end,
 
-  setup_linter = function(self)
-    if type(self.use_lint) == 'table' then
-      if type(self.use_lint.linters_by_ft) == 'table' then
-        require('lint').linters_by_ft = self.use_lint.linters_by_ft
+  load_presets = function(self)
+    if type(self.presets) ~= 'table' then return end
 
-        local pattern = self.use_lint.file_pattern or { "*.rb", "*.erb", "*.haml", "*.slim" }
-
-        vim.api.nvim_create_autocmd({ "BufWritePost" }, {
-          pattern = pattern,
-          callback = function()
-            require("lint").try_lint()
-          end,
-        })
-
-        vim.api.nvim_create_autocmd({ "BufRead" }, {
-          pattern = pattern,
-          callback = function()
-            require("lint").try_lint()
-          end,
-        })
+    -- load presets bundle
+    for name, preset in pairs(self.presets) do
+      if type(preset.setup) == 'function' then
+        preset.setup(self)
       end
     end
-  end,
-
-  setup_treesitter = function(self)
-    if type(self.use_treesitter) ~= 'table' or type(self.use_treesitter.languages) ~= 'table' then return end
-
-    require('nvim-treesitter.configs').setup {
-      ensure_installed = self.use_treesitter.languages,
-      sync_install     = true,
-      auto_install     = true,
-      highlight        = { enable = true }
-    }
-  end,
-
-  setup_start_dashboard = function(self)
-    local alpha = require("alpha")
-    local startify = require("alpha.themes.startify")
-
-    local title = self.start_dashboard.title or 'Hello world'
-
-    startify.section.header.val = { '[[> ' .. title  .. ' ]]' }
-
-    startify.opts.layout[1].val = 2
-    startify.opts.opts.margin   = 3
-
-    -- disable MRU
-    startify.section.mru.val = { { type = "padding", val = 0 } }
-
-    local buttons = {}
-
-    for _, data in pairs(self.start_dashboard.buttons or {}) do
-      local btn = startify.button(unpack(data))
-      table.insert(buttons, btn)
-    end
-
-    startify.section.top_buttons.val = buttons
-
-    -- Send config to alpha
-    alpha.setup(startify.config)
-
-    -- Disable folding on alpha buffer
-    vim.cmd([[autocmd FileType alpha setlocal nofoldenable]])
-  end,
-
-  setup_plugins_from_templates = function()
-    -- TODO:
   end,
 
   setup = function(self, config)
@@ -237,6 +206,7 @@ local NvimConfigLoader = {
     self:load_vim_plug_bundle()
     self:load_vim_options()
     self:load_vim_globals()
+    self:load_presets()
 
     self:load_additional_config_files()
 
@@ -244,17 +214,16 @@ local NvimConfigLoader = {
 
     self:load_keymaps()
     self:load_autocommands()
-    -- TODO: IDEA: move setup to loadable loaders
-    self:setup_linter()
-    self:setup_treesitter()
-    self:setup_start_dashboard()
     self:setup_colorscheme()
     self:log_reloading()
   end
 }
 
-local plugins_configs_default_templates = {
-  use_nvim_lint = {
+local DefaultPresets = {
+  nvim_lint = {
+    vim_plug_bundle = {
+      'mfussenegger/nvim-lint' -- " TODO: use lsp linter support?
+    },
     setup = function(self)
       if type(self.use_lint) == 'table' then
         if type(self.use_lint.linters_by_ft) == 'table' then
@@ -262,14 +231,7 @@ local plugins_configs_default_templates = {
 
           local pattern = self.use_lint.file_pattern or { "*.rb", "*.erb", "*.haml", "*.slim" }
 
-          vim.api.nvim_create_autocmd({ "BufWritePost" }, {
-            pattern = pattern,
-            callback = function()
-              require("lint").try_lint()
-            end,
-          })
-
-          vim.api.nvim_create_autocmd({ "BufRead" }, {
+          vim.api.nvim_create_autocmd({ "BufWritePost", "BufRead" }, {
             pattern = pattern,
             callback = function()
               require("lint").try_lint()
@@ -278,54 +240,61 @@ local plugins_configs_default_templates = {
         end
       end
     end,
-
-    use_nvim_treesitter = {
-      setup = function(self)
-        if type(self.use_treesitter) ~= 'table' or type(self.use_treesitter.languages) ~= 'table' then return end
-
-        require('nvim-treesitter.configs').setup {
-          ensure_installed = self.use_treesitter.languages,
-          sync_install     = true,
-          auto_install     = true,
-          highlight        = { enable = true }
-        }
-      end
+  },
+  nvim_treesitter = {
+    vim_plug_bundle = {
+      'nvim-treesitter/nvim-treesitter',
+      'nvim-treesitter/playground',
+      'SmiteshP/nvim-gps'
     },
+    setup = function(self)
+      if type(self.use_treesitter) ~= 'table' or type(self.use_treesitter.languages) ~= 'table' then return end
 
-    use_alpha_dashboard = {
-      setup = function(self)
-        local alpha = require("alpha")
-        local startify = require("alpha.themes.startify")
+      require('nvim-treesitter.configs').setup {
+        ensure_installed = self.use_treesitter.languages,
+        sync_install     = true,
+        auto_install     = true,
+        highlight        = { enable = true }
+      }
+    end
+  },
+  alpha_start_dashboard = {
+    vim_plug_bundle = {
+      'goolord/alpha-nvim'
+    },
+    autocommands = {
+      -- Disable folding on alpha buffer
+      { event = { 'FileType' }, pattern = 'alpha', command = 'setlocal nofoldenable' },
+    },
+    setup = function(self)
+      local alpha = require("alpha")
+      local startify = require("alpha.themes.startify")
 
-        local title = self.start_dashboard.title or 'Hello world'
+      local title = self.start_dashboard.title or 'Hello world'
 
-        startify.section.header.val = { '[[> ' .. title  .. ' ]]' }
+      startify.section.header.val = { '[[> ' .. title  .. ' ]]' }
 
-        startify.opts.layout[1].val = 2
-        startify.opts.opts.margin   = 3
+      startify.opts.layout[1].val = 2
+      startify.opts.opts.margin   = 3
 
-        -- disable MRU
-        startify.section.mru.val = { { type = "padding", val = 0 } }
+      -- disable MRU
+      startify.section.mru.val = { { type = "padding", val = 0 } }
 
-        local buttons = {}
+      local buttons = {}
 
-        for _, data in pairs(self.start_dashboard.buttons or {}) do
-          local btn = startify.button(unpack(data))
-          table.insert(buttons, btn)
-        end
-
-        startify.section.top_buttons.val = buttons
-
-        -- Send config to alpha
-        alpha.setup(startify.config)
-
-        -- Disable folding on alpha buffer
-        vim.cmd([[autocmd FileType alpha setlocal nofoldenable]])
+      for _, data in pairs(self.start_dashboard.buttons or {}) do
+        local btn = startify.button(unpack(data))
+        table.insert(buttons, btn)
       end
-    }
+
+      startify.section.top_buttons.val = buttons
+
+      -- Send config to alpha
+      alpha.setup(startify.config)
+    end
   }
 }
 
-NvimConfigLoader.plugins_configs_default_templates = plugins_configs_default_templates
+NvimConfigLoader.presets = DefaultPresets
 
 return NvimConfigLoader

@@ -1,4 +1,4 @@
-# TinyNvimLoader - one-table modern nvim configuration loader / initializer
+# TODO: <name> - one-table modern nvim configuration loader / initializer
 
 ### Install & update
 
