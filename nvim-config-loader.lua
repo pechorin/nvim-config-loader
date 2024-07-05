@@ -1,5 +1,6 @@
 -- TODO: lazy.nvim/vim-pack integration ?
--- TODO: add before|after_setup ?
+--
+-- TODO: add vimplug autodonwload & setup
 --
 -- TODO: add cool checkhealth with main settings detection
 
@@ -10,7 +11,8 @@ end
 
 local NvimConfigLoader = {
   profile_loads        = 0,
-  presets              = {},
+  default_presets      = {},
+  packs                = {},
 
   colorscheme          = 'default',
   bg                   = 'light',
@@ -65,8 +67,8 @@ local NvimConfigLoader = {
     end
 
     -- load presets bundle
-    if type(self.presets) == 'table' then
-      for _, preset in pairs(self.presets) do
+    if type(self.default_presets) == 'table' then
+      for _, preset in pairs(self.default_presets) do
         if type(preset.vim_plug_bundle) == 'table' then
           for _, plugin_data in ipairs(preset.vim_plug_bundle) do
             load_plugin(plugin_data)
@@ -83,6 +85,8 @@ local NvimConfigLoader = {
         load_plugin(plugin_data)
       end
     end
+
+    -- TODO: load user defined bundle from packs
 
     vim.call('plug#end')
   end,
@@ -167,7 +171,7 @@ local NvimConfigLoader = {
       end
     end
 
-    -- load user defined bundle
+    -- load user defined autocommands
     local opt = self.autocommands
     if type(opt) ~= "table" then return end
 
@@ -176,6 +180,8 @@ local NvimConfigLoader = {
 
       for _, cmd in ipairs(commands) do create_autocmd(cmd, augroup) end
     end
+
+    -- TODO: load user defined autocommands from packs
   end,
 
   load_keymaps = function(self)
@@ -187,15 +193,21 @@ local NvimConfigLoader = {
     end
   end,
 
-  load_presets = function(self)
-    if type(self.presets) ~= 'table' then return end
+  load_default_presets = function(self)
+    if type(self.default_presets) ~= 'table' then return end
 
     -- load presets bundle
-    for name, preset in pairs(self.presets) do
+    for name, preset in pairs(self.default_presets) do
       if type(preset.setup) == 'function' then
         preset.setup(self)
       end
     end
+  end,
+
+  load_packs = function(self)
+    if type(self.packs) ~= 'table' then return end
+
+    -- TODO:
   end,
 
   setup = function(self, config)
@@ -206,7 +218,8 @@ local NvimConfigLoader = {
     self:load_vim_plug_bundle()
     self:load_vim_options()
     self:load_vim_globals()
-    self:load_presets()
+
+    self:load_default_presets()
 
     self:load_additional_config_files()
 
@@ -295,6 +308,6 @@ local DefaultPresets = {
   }
 }
 
-NvimConfigLoader.presets = DefaultPresets
+NvimConfigLoader.default_presets = DefaultPresets
 
 return NvimConfigLoader
