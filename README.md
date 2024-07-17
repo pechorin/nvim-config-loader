@@ -473,4 +473,19 @@ require('tiny-nvim-loader'):setup {
 }
 ```
 
-TODO: example folder
+## Features
+
+- Complete nvim configuration with one lua table
+- vim-plug support out of the box (auto downloading and installation)
+- ? Lazy setup() function support for vim-plug plugins
+
+TODO:
+- [ ] comments
+- [ ] vimplug autodonwload & setup
+- [ ] checkhealth with main settings detection
+- [ ] store saved settings status
+- [ ] presets via separate files?
+- [ ] default dashboard buttons?
+- [ ] add flat lists loading (without grouping)
+- [ ] vim-plug setup() function per plugin support (https://dev.to/vonheikemen/neovim-using-vim-plug-in-lua-3oom)
+- [ ] example folder

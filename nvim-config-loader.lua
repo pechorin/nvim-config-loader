@@ -1,9 +1,3 @@
--- TODO: lazy.nvim/vim-pack integration ?
---
--- TODO: add vimplug autodonwload & setup
---
--- TODO: add cool checkhealth with main settings detection
-
 function _G.dump(...)
   local objects = vim.tbl_map(vim.inspect, {...})
   print(unpack(objects))
@@ -12,87 +6,87 @@ end
 local NvimConfigLoader = {
   profile_loads        = 0,
   default_presets      = {},
-  packs                = {},
 
-  colorscheme          = 'default',
-  bg                   = 'light',
+  settings = {
+    colorscheme             = 'default',
+    bg                      = 'light',
 
-  -- Vim plug bundle path
-  vim_plug_bundle_path = nil,
+    vim_plug_bundle_path    = nil,
+    vim_plug_bundle         = {},
 
-  -- Additional .vim or .lua config sources from ~/.vim/ like:
-  --  completion.lua
-  --  lsp.lua
-  additional_config_files = {},
+    additional_config_files = {},
 
-  vim_options          = {},
-  vim_globals          = {},
-
-  vim_plug_bundle      = {},
-
-  keymaps              = {},
-  autocommands         = {},
-
-  -- TODO: default presets
-  use_lint             = {},
-  use_treesitter       = {},
-  start_dashboard      = {},
-
+    vim_options             = {},
+    vim_globals             = {},
+    keymaps                 = {},
+    autocommands            = {},
+    packs                   = {},
+  },
 
   vim_files_path = function()
     local path = vim.fn.resolve(vim.fn.expand('<sfile>:p'))
     return vim.fn.substitute(vim.fn.substitute(path, ".vimrc", '', ''), 'init.lua', '', '')
   end,
 
+  install_vim_plug = function()
+    -- TODO:
+  end,
+
+  load_vim_plug_plugin = function(plugin_data)
+    if type(plugin_data) == 'string' then
+      vim.fn['plug#'](plugin_data)
+    elseif type(plugin_data) == 'table' then
+      vim.fn['plug#'](unpack(plugin_data))
+    end
+  end,
+
   load_vim_plug_bundle = function(self)
-    local bundle_path = self.vim_plug_bundle_path
-    local bundle      = self.vim_plug_bundle
+    local bundle_path = self.settings.vim_plug_bundle_path
 
     if type(bundle_path) ~= "string" then return end
-    if type(bundle)      ~= "table"  then return end
+    -- if type(bundle)      ~= "table"  then return end
 
     vim.o.rtp = vim.o.rtp .. bundle_path ..  '/Vundle.vim'
 
     local vim  = vim
-    local Plug = vim.fn['plug#']
 
     vim.call('plug#begin', bundle_path)
-
-    local load_plugin = function(data)
-      if type(data) == 'string' then
-        Plug(data)
-      elseif type(data) == 'table' then
-        Plug(unpack(data))
-      end
-    end
 
     -- load presets bundle
     if type(self.default_presets) == 'table' then
       for _, preset in pairs(self.default_presets) do
         if type(preset.vim_plug_bundle) == 'table' then
-          for _, plugin_data in ipairs(preset.vim_plug_bundle) do
-            load_plugin(plugin_data)
-          end
+          for _, plugin_data in ipairs(preset.vim_plug_bundle) do self.load_vim_plug_plugin(plugin_data) end
         end
       end
     end
 
     -- load user defined bundle
-    for _, group_bundle in ipairs(bundle) do
-      local plugins = group_bundle.plugins or {}
+    local bundle = self.settings.vim_plug_bundle
+    if type(bundle) == 'table' then
+      for _, group_bundle in ipairs(bundle) do
+        local plugins = group_bundle.plugins or {}
 
-      for _, plugin_data in ipairs(plugins) do
-        load_plugin(plugin_data)
+        for _, plugin_data in ipairs(plugins) do self.load_vim_plug_plugin(plugin_data) end
       end
     end
 
     -- TODO: load user defined bundle from packs
+    if type(self.settings.packs) == 'table' then
+      for pack_name, pack_data in pairs(self.settings.packs) do
+        local pack_bundle = pack_data['vim_plug_bundle']
+
+        if type(pack_bundle) == 'table' then
+          for _, plugin_data in ipairs(pack_bundle) do self.load_vim_plug_plugin(plugin_data) end
+        end
+      end
+    end
 
     vim.call('plug#end')
   end,
 
   load_additional_config_files = function(self)
-    local opt = self.additional_config_files
+    local opt = self.settings.additional_config_files
     if type(opt) ~= "table" then return end
 
     for _, setting_file in ipairs(opt) do
@@ -100,92 +94,96 @@ local NvimConfigLoader = {
     end
   end,
 
-  setup_colorscheme = function(self)
+  load_colorscheme = function(self)
+    local opt = self.settings.colorscheme
+    if type(opt) ~= "string" then return end
+
     -- Set colorscheme once at first profile load
     if self.profile_loads == 0 then
-      vim.opt.bg = self.bg
-      vim.cmd.colorscheme(self.colorscheme)
+      vim.opt.bg = self.settings.bg or 'light'
+      vim.cmd.colorscheme(opt)
     end
   end,
 
   log_reloading = function(self)
     if self.profile_loads > 1 then
-      print("NvimConfigLoader: reloading profile #" .. tostring(self.profile_loads))
+      print("reloading profile #" .. tostring(self.profile_loads))
     end
 
     self.profile_loads = self.profile_loads + 1
   end,
 
+  get_option_value = function(user_value)
+    if type(user_value) == 'function' then
+      return user_value()
+    else
+      return user_value
+    end
+  end,
+
   load_vim_options = function(self)
-    local opt = self.vim_options
+    local opt = self.settings.vim_options
     if type(opt) ~= "table" then return end
 
     for option, v in pairs(opt) do
-      local value
-
-      if type(v) == 'function' then
-        value = v()
-      else
-        value = v
-      end
-
-      vim.opt[option] = value
+      vim.opt[option] = self.get_option_value(v)
     end
   end,
 
   load_vim_globals = function(self)
-    local opt = self.vim_globals
+    local opt = self.settings.vim_globals
     if type(opt) ~= "table" then return end
 
     for global, v in pairs(opt) do
-      local value
-
-      if type(v) == 'function' then
-        value = v()
-      else
-        value = v
-      end
-
-      vim.g[global] = value
+      vim.g[global] = self.get_option_value(v)
     end
   end,
 
   load_autocommands = function(self)
-    local create_autocmd = function(cmd, augroup)
-      vim.api.nvim_create_autocmd(cmd.event, {
-       pattern  = cmd.pattern,
-       group    = augroup,
-       command  = cmd.command,
-       callback = cmd.callback,
-      })
-    end
-
     -- load presets bundle
-    if type(self.presets) == 'table' then
-      for group, preset in pairs(self.presets) do
-        local augroup = vim.api.nvim_create_augroup(group, { clear = true })
-
-        if type(preset.autocommands) == 'table' then
-          for _, cmd in ipairs(preset.autocommands) do create_autocmd(cmd, augroup) end
-        end
+    if type(self.default_presets) == 'table' then
+      for group, preset in pairs(self.default_presets) do
+        self:create_grouped_autocommands(group, preset)
       end
     end
 
     -- load user defined autocommands
-    local opt = self.autocommands
-    if type(opt) ~= "table" then return end
-
-    for group, commands in pairs(opt) do
-      local augroup = vim.api.nvim_create_augroup(group, { clear = true })
-
-      for _, cmd in ipairs(commands) do create_autocmd(cmd, augroup) end
+    local opt = self.settings.autocommands
+    if type(opt) == "table" then
+      for group, commands in pairs(opt) do
+        self:create_grouped_autocommands(group, commands)
+      end
     end
 
-    -- TODO: load user defined autocommands from packs
+    -- load user defined autocommands from packs
+    if type(self.settings.packs) == 'table' then
+      for pack_name, pack_data in pairs(self.settings.packs) do
+        local pack_autocommands = pack_data['autocommands']
+
+        if type(pack_autocommands) == 'table' then
+          self:create_grouped_autocommands(pack_name, pack_autocommands)
+        end
+      end
+    end
+  end,
+
+  create_autocommand = function(cmd, augroup)
+    vim.api.nvim_create_autocmd(cmd.event, {
+     pattern  = cmd.pattern,
+     group    = augroup,
+     command  = cmd.command,
+     callback = cmd.callback,
+    })
+  end,
+
+  create_grouped_autocommands = function(self, group_name, autocommands)
+    local augroup = vim.api.nvim_create_augroup(group_name, { clear = true })
+
+    for _, cmd in ipairs(autocommands) do self.create_autocommand(cmd, augroup) end
   end,
 
   load_keymaps = function(self)
-    local opt = self.keymaps
+    local opt = self.settings.keymaps
     if type(opt) ~= "table" then return end
 
     for _, group in pairs(opt) do
@@ -193,41 +191,46 @@ local NvimConfigLoader = {
     end
   end,
 
-  load_default_presets = function(self)
+  setup_default_presets = function(self)
     if type(self.default_presets) ~= 'table' then return end
 
-    -- load presets bundle
     for name, preset in pairs(self.default_presets) do
-      if type(preset.setup) == 'function' then
+      if self.settings[name] ~= nil and type(preset.setup) == 'function' then
         preset.setup(self)
       end
     end
   end,
 
-  load_packs = function(self)
-    if type(self.packs) ~= 'table' then return end
+  setup_packs = function(self)
+    if type(self.settings.packs) ~= 'table' then return end
 
-    -- TODO:
+    for pack_name, pack_data in pairs(self.settings.packs) do
+      if type(pack_data.setup) == 'function' then
+        pack_data.setup(self)
+      end
+    end
   end,
 
-  setup = function(self, config)
-    for k, v in pairs(config) do
-      if k ~= 'setup' then self[k] = v end
+  setup = function(self, user_settings)
+    for k, v in pairs(user_settings) do
+      if k ~= 'setup' then self.settings[k] = v end
     end
 
     self:load_vim_plug_bundle()
     self:load_vim_options()
     self:load_vim_globals()
 
-    self:load_default_presets()
+    self:setup_default_presets()
 
-    self:load_additional_config_files()
-
-    if type(config.setup) == 'function' then config.setup(self) end
+    if type(user_settings.setup) == 'function' then user_settings.setup(self) end
 
     self:load_keymaps()
     self:load_autocommands()
-    self:setup_colorscheme()
+    self:load_colorscheme()
+
+    self:load_additional_config_files()
+    self:setup_packs()
+
     self:log_reloading()
   end
 }
@@ -238,11 +241,11 @@ local DefaultPresets = {
       'mfussenegger/nvim-lint' -- " TODO: use lsp linter support?
     },
     setup = function(self)
-      if type(self.use_lint) == 'table' then
-        if type(self.use_lint.linters_by_ft) == 'table' then
-          require('lint').linters_by_ft = self.use_lint.linters_by_ft
+      if type(self.settings.nvim_lint) == 'table' then
+        if type(self.settings.nvim_lint.linters_by_ft) == 'table' then
+          require('lint').linters_by_ft = self.settings.nvim_lint.linters_by_ft
 
-          local pattern = self.use_lint.file_pattern or { "*.rb", "*.erb", "*.haml", "*.slim" }
+          local pattern = self.settings.nvim_lint.file_pattern or { "*.rb", "*.erb", "*.haml", "*.slim" }
 
           vim.api.nvim_create_autocmd({ "BufWritePost", "BufRead" }, {
             pattern = pattern,
@@ -261,10 +264,10 @@ local DefaultPresets = {
       'SmiteshP/nvim-gps'
     },
     setup = function(self)
-      if type(self.use_treesitter) ~= 'table' or type(self.use_treesitter.languages) ~= 'table' then return end
+      if type(self.settings.nvim_treesitter) ~= 'table' or type(self.settings.nvim_treesitter.languages) ~= 'table' then return end
 
       require('nvim-treesitter.configs').setup {
-        ensure_installed = self.use_treesitter.languages,
+        ensure_installed = self.settings.nvim_treesitter.languages,
         sync_install     = true,
         auto_install     = true,
         highlight        = { enable = true }
@@ -283,9 +286,9 @@ local DefaultPresets = {
       local alpha = require("alpha")
       local startify = require("alpha.themes.startify")
 
-      local title = self.start_dashboard.title or 'Hello world'
+      local title = self.settings.alpha_start_dashboard.title or 'Hello world'
 
-      startify.section.header.val = { '[[> ' .. title  .. ' ]]' }
+      startify.section.header.val = { title }
 
       startify.opts.layout[1].val = 2
       startify.opts.opts.margin   = 3
@@ -295,7 +298,7 @@ local DefaultPresets = {
 
       local buttons = {}
 
-      for _, data in pairs(self.start_dashboard.buttons or {}) do
+      for _, data in pairs(self.settings.alpha_start_dashboard.buttons or {}) do
         local btn = startify.button(unpack(data))
         table.insert(buttons, btn)
       end
