@@ -54,6 +54,8 @@ local NvimConfigLoader = {
         local bundle_path = self.settings.vim_plug_bundle_path
         if type(bundle_path) ~= "string" then return end
 
+        local plug = self.plugin_managers.plug
+
         -- local vim = vim
         vim.o.rtp = vim.o.rtp .. bundle_path ..  '/Vundle.vim'
         vim.call('plug#begin', bundle_path)
@@ -61,21 +63,33 @@ local NvimConfigLoader = {
         -- load presets bundle
         if type(self.default_packs) == 'table' then
           for _, preset in pairs(self.default_packs) do
-            self.plugin_managers.plug.load_plugins(self, preset.vim_plug_bundle)
+            plug.load_plugins(self, preset.vim_plug_bundle)
           end
         end
 
         -- load user defined bundle
         if type(self.settings.vim_plug_bundle) == 'table' then
-          for _, group_bundle in ipairs(self.settings.vim_plug_bundle) do
-            self.plugin_managers.plug.load_plugins(self, group_bundle.plugins)
+          for _, data in pairs(self.settings.vim_plug_bundle) do
+            -- regular string plugin definition
+            if type(data) == 'string' then
+              plug.load_plugin(data)
+
+            -- table plugin definition
+            elseif type(data) == 'table' then
+              -- plugins group detector
+              if type(data.plugins) == 'table' then
+                plug.load_plugins(self, data.plugins)
+              else
+                plug.load_plugin(data)
+              end
+            end
           end
         end
 
         -- load user defined bundle from packs
         if type(self.settings.packs) == 'table' then
           for _, pack_data in pairs(self.settings.packs) do
-            self.plugin_managers.plug.load_plugins(self, pack_data.vim_plug_bundle)
+            plug.load_plugins(self, pack_data.vim_plug_bundle)
           end
         end
 
