@@ -1,5 +1,10 @@
 # TODO: <name> - one-table modern nvim configuration loader / initializer
 
+## Features
+
+- Complete nvim configuration with one lua table
+- vim-plug support out of the box (auto downloading and installation)
+
 ### Install & update
 
 Run bash script to download `tiny-nvim-loader.lua` and install to vim home directory:
@@ -473,15 +478,10 @@ require('tiny-nvim-loader'):setup {
 }
 ```
 
-## Features
+### TODO
 
-- Complete nvim configuration with one lua table
-- vim-plug support out of the box (auto downloading and installation)
-- ? Lazy setup() function support for vim-plug plugins
-
-TODO:
 - [ ] comments
-- [ ] vimplug autodonwload & setup
+- [ ] vimplug autodonwload & setupa https://github.com/junegunn/vim-plug/wiki/tips
 - [ ] checkhealth with main settings detection
 - [ ] store saved settings status
 - [ ] presets via separate files?
