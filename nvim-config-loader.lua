@@ -3,9 +3,10 @@ function _G.dump(...)
   print(unpack(objects))
 end
 
+-- TODO: private / public interface
+
 local NvimConfigLoader = {
-  profile_loads        = 0,
-  default_packs      = {},
+  profile_loads = 0,
 
   settings = {
     colorscheme             = 'default',
@@ -50,6 +51,26 @@ local NvimConfigLoader = {
         end
       end,
 
+      unpack_and_load_plugins = function(self, data)
+        local plug = self.plugin_managers.plug
+
+        -- regular string plugin definition
+        if type(data) == 'string' then
+          plug.load_plugin(data)
+
+        -- table plugin definition
+        elseif type(data) == 'table' then
+          if data[1] then
+            plug.load_plugin(data)
+          else
+            local iter = pairs(data)
+            local _, list = iter(data)
+
+            plug.load_plugins(self, list)
+          end
+        end
+      end,
+
       load = function(self)
         local bundle_path = self.settings.vim_plug_bundle_path
         if type(bundle_path) ~= "string" then return end
@@ -60,36 +81,19 @@ local NvimConfigLoader = {
         vim.o.rtp = vim.o.rtp .. bundle_path ..  '/Vundle.vim'
         vim.call('plug#begin', bundle_path)
 
-        -- load presets bundle
-        if type(self.default_packs) == 'table' then
-          for _, preset in pairs(self.default_packs) do
-            plug.load_plugins(self, preset.vim_plug_bundle)
-          end
-        end
-
         -- load user defined bundle
         if type(self.settings.vim_plug_bundle) == 'table' then
           for _, data in pairs(self.settings.vim_plug_bundle) do
-            -- regular string plugin definition
-            if type(data) == 'string' then
-              plug.load_plugin(data)
-
-            -- table plugin definition
-            elseif type(data) == 'table' then
-              -- plugins group detector
-              if type(data.plugins) == 'table' then
-                plug.load_plugins(self, data.plugins)
-              else
-                plug.load_plugin(data)
-              end
-            end
+            plug.unpack_and_load_plugins(self, data)
           end
         end
 
         -- load user defined bundle from packs
         if type(self.settings.packs) == 'table' then
           for _, pack_data in pairs(self.settings.packs) do
-            plug.load_plugins(self, pack_data.vim_plug_bundle)
+            for _, data in pairs(pack_data.vim_plug_bundle) do
+              plug.unpack_and_load_plugins(self, data)
+            end
           end
         end
 
@@ -152,32 +156,6 @@ local NvimConfigLoader = {
     end
   end,
 
-  load_autocommands = function(self)
-    -- load presets bundle
-    if type(self.default_packs) == 'table' then
-      for group, preset in pairs(self.default_packs) do
-        self:create_grouped_autocommands(group, preset)
-      end
-    end
-
-    -- load user defined autocommands
-    local opt = self.settings.autocommands
-    if type(opt) == "table" then
-      for group, commands in pairs(opt) do
-        self:create_grouped_autocommands(group, commands)
-      end
-    end
-
-    -- load user defined autocommands from packs
-    if type(self.settings.packs) == 'table' then
-      for pack_name, pack_data in pairs(self.settings.packs) do
-        if type(pack_data.autocommands) == table then
-          self:create_grouped_autocommands(pack_name, pack_data.autocommands)
-        end
-      end
-    end
-  end,
-
   create_autocommand = function(cmd, augroup)
     vim.api.nvim_create_autocmd(cmd.event, {
      pattern  = cmd.pattern,
@@ -193,33 +171,67 @@ local NvimConfigLoader = {
     for _, cmd in ipairs(autocommands) do self.create_autocommand(cmd, augroup) end
   end,
 
+  unpack_and_create_grouped_autocommands = function(self, key, data)
+    if type(data) ~= 'table' then return end
+
+    if type(key) == "number" then
+      self.create_autocommand(data, nil)
+    else
+      self.create_grouped_autocommands(self, key, data)
+    end
+  end,
+
+  load_autocommands = function(self)
+    -- load user defined autocommands
+    local opt = self.settings.autocommands
+    if type(opt) == "table" then
+      for key, data in pairs(opt) do
+        self:unpack_and_create_grouped_autocommands(key, data)
+      end
+    end
+
+    -- load user defined autocommands from packs
+    if type(self.settings.packs) == 'table' then
+      for _, pack_data in pairs(self.settings.packs) do
+        if type(pack_data.autocommands) == 'table' then
+          for key, data in pairs(pack_data.autocommands) do
+            self:unpack_and_create_grouped_autocommands(key, data)
+          end
+        end
+      end
+    end
+  end,
+
+  unpack_and_load_keymaps = function(key, data)
+    if type(data) ~= 'table' then return end
+
+    if type(key) == "number" then
+      vim.keymap.set(unpack(data))
+    else
+      for _, mapping in ipairs(data) do
+        vim.keymap.set(unpack(mapping))
+      end
+    end
+  end,
+
   load_keymaps = function(self)
     -- load user defined keymaps
-    local opt = self.settings.keymaps
-    if type(opt) == "table" then
-      for _, group in pairs(opt) do
-        for _, mapping in ipairs(group) do vim.keymap.set(unpack(mapping)) end
+    if type(self.settings.keymaps) == "table" then
+      for key, data in pairs(self.settings.keymaps) do
+        self.unpack_and_load_keymaps(key, data)
       end
     end
 
     -- load user defined keymaps from packs
     if type(self.settings.packs) == 'table' then
       for _, pack_data in pairs(self.settings.packs) do
-        local pack_keymaps = pack_data['keymaps']
+        local keymaps = pack_data.keymaps
 
-        if type(pack_keymaps) == 'table' then
-          for _, mapping in ipairs(pack_keymaps) do vim.keymap.set(unpack(mapping)) end
+        if type(keymaps) == 'table' then
+          for key, data in pairs(keymaps) do
+            self.unpack_and_load_keymaps(key, data)
+          end
         end
-      end
-    end
-  end,
-
-  setup_default_packs = function(self)
-    if type(self.default_packs) ~= 'table' then return end
-
-    for name, preset in pairs(self.default_packs) do
-      if self.settings[name] ~= nil and type(preset.setup) == 'function' then
-        preset.setup(self)
       end
     end
   end,
@@ -244,8 +256,6 @@ local NvimConfigLoader = {
     self:load_vim_options()
     self:load_vim_globals()
 
-    self:setup_default_packs()
-
     if type(user_settings.setup) == 'function' then user_settings.setup(self) end
 
     self:load_keymaps()
@@ -259,83 +269,5 @@ local NvimConfigLoader = {
     self:log_reloading()
   end
 }
-
-local DefaultPacks = {
-  nvim_lint = {
-    vim_plug_bundle = {
-      'mfussenegger/nvim-lint' -- " TODO: use lsp linter support?
-    },
-    setup = function(self)
-      if type(self.settings.nvim_lint) == 'table' then
-        if type(self.settings.nvim_lint.linters_by_ft) == 'table' then
-          require('lint').linters_by_ft = self.settings.nvim_lint.linters_by_ft
-
-          local pattern = self.settings.nvim_lint.file_pattern or { "*.rb", "*.erb", "*.haml", "*.slim" }
-
-          vim.api.nvim_create_autocmd({ "BufWritePost", "BufRead" }, {
-            pattern = pattern,
-            callback = function()
-              require("lint").try_lint()
-            end,
-          })
-        end
-      end
-    end,
-  },
-  nvim_treesitter = {
-    vim_plug_bundle = {
-      'nvim-treesitter/nvim-treesitter',
-      'nvim-treesitter/playground',
-      'SmiteshP/nvim-gps'
-    },
-    setup = function(self)
-      if type(self.settings.nvim_treesitter) ~= 'table' or type(self.settings.nvim_treesitter.languages) ~= 'table' then return end
-
-      require('nvim-treesitter.configs').setup {
-        ensure_installed = self.settings.nvim_treesitter.languages,
-        sync_install     = true,
-        auto_install     = true,
-        highlight        = { enable = true }
-      }
-    end
-  },
-  alpha_start_dashboard = {
-    vim_plug_bundle = {
-      'goolord/alpha-nvim'
-    },
-    autocommands = {
-      -- Disable folding on alpha buffer
-      { event = { 'FileType' }, pattern = 'alpha', command = 'setlocal nofoldenable' },
-    },
-    setup = function(self)
-      local alpha = require("alpha")
-      local startify = require("alpha.themes.startify")
-
-      local title = self.settings.alpha_start_dashboard.title or 'Hello world'
-
-      startify.section.header.val = { title }
-
-      startify.opts.layout[1].val = 2
-      startify.opts.opts.margin   = 3
-
-      -- disable MRU
-      startify.section.mru.val = { { type = "padding", val = 0 } }
-
-      local buttons = {}
-
-      for _, data in pairs(self.settings.alpha_start_dashboard.buttons or {}) do
-        local btn = startify.button(unpack(data))
-        table.insert(buttons, btn)
-      end
-
-      startify.section.top_buttons.val = buttons
-
-      -- Send config to alpha
-      alpha.setup(startify.config)
-    end
-  }
-}
-
-NvimConfigLoader.default_packs = DefaultPacks
 
 return NvimConfigLoader
