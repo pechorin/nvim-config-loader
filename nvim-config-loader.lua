@@ -20,7 +20,26 @@ local Loader = {
     keymaps                 = {},
     autocommands            = {},
     packs                   = {},
+
+    show_stats              = false,
   },
+
+  stats = {
+    options = 0,
+    globals = 0,
+    plugins = 0,
+    plugins_groups = 0,
+    autocommands = 0,
+    autocommands_groups = 0,
+    keymaps = 0,
+    keymaps_groups = 0,
+    global_setup_function = 0,
+    packs_setup_functions = 0,
+  },
+
+  stat = function(self, stat)
+    self.stats[stat] = self.stats[stat] + 1
+  end,
 
   vim_files_path = function()
     local path = vim.fn.resolve(vim.fn.expand('<sfile>:p'))
@@ -33,7 +52,9 @@ local Loader = {
         -- TODO:
       end,
 
-      load_plugin = function(plugin_data)
+      load_plugin = function(self, plugin_data)
+        self:stat('plugins')
+
         if type(plugin_data) == 'string' then
           vim.fn['plug#'](plugin_data)
         elseif type(plugin_data) == 'table' then
@@ -45,7 +66,7 @@ local Loader = {
         if type(list) ~= 'table' then return end
 
         for _, plugin_data in ipairs(list) do
-          self.plugin_managers.plug.load_plugin(plugin_data)
+          self.plugin_managers.plug.load_plugin(self, plugin_data)
         end
       end,
 
@@ -54,15 +75,17 @@ local Loader = {
 
         -- regular string plugin definition
         if type(data) == 'string' then
-          plug.load_plugin(data)
+          plug.load_plugin(self, data)
 
         -- table plugin definition
         elseif type(data) == 'table' then
           if data[1] then
-            plug.load_plugin(data)
+            plug.load_plugin(self, data)
           else
             local iter = pairs(data)
             local _, list = iter(data)
+
+            self:stat('plugins_groups')
 
             plug.load_plugins(self, list)
           end
@@ -128,6 +151,27 @@ local Loader = {
     self.profile_loads = self.profile_loads + 1
   end,
 
+  show_stats = function(self)
+    if self.settings.show_stats == false then return end
+
+    print('profile stats:')
+    dump(self.stats)
+  end,
+
+  check_health = function(self)
+    local problems = {}
+
+    if (self.stats.options == 0) then table.insert(problems, 'vim options not defined') end
+    if (self.stats.globals == 0) then table.insert(problems, 'vim globals not set') end
+    if (self.stats.plugins == 0) then table.insert(problems, 'no plugins defined') end
+    if (self.stats.global_setup_function == 0) then table.insert(problems, 'global setup() function not provided') end
+
+    if #problems > 0 then
+      print("NvimConfigLoader not properly set, problems list:")
+      dump(problems)
+    end
+  end,
+
   get_option_value = function(user_value)
     if type(user_value) == 'function' then
       return user_value()
@@ -141,6 +185,7 @@ local Loader = {
     if type(opt) ~= "table" then return end
 
     for option, v in pairs(opt) do
+      self:stat('options')
       vim.opt[option] = self.get_option_value(v)
     end
   end,
@@ -150,11 +195,14 @@ local Loader = {
     if type(opt) ~= "table" then return end
 
     for global, v in pairs(opt) do
+      self:stat('globals')
       vim.g[global] = self.get_option_value(v)
     end
   end,
 
-  create_autocommand = function(cmd, augroup)
+  create_autocommand = function(self, cmd, augroup)
+    self:stat('autocommands')
+
     vim.api.nvim_create_autocmd(cmd.event, {
      pattern  = cmd.pattern,
      group    = augroup,
@@ -166,14 +214,16 @@ local Loader = {
   create_grouped_autocommands = function(self, group_name, autocommands)
     local augroup = vim.api.nvim_create_augroup(group_name, { clear = true })
 
-    for _, cmd in ipairs(autocommands) do self.create_autocommand(cmd, augroup) end
+    self:stat('autocommands_groups')
+
+    for _, cmd in ipairs(autocommands) do self.create_autocommand(self, cmd, augroup) end
   end,
 
   unpack_and_create_grouped_autocommands = function(self, key, data)
     if type(data) ~= 'table' then return end
 
     if type(key) == "number" then
-      self.create_autocommand(data, nil)
+      self.create_autocommand(self, data, nil)
     else
       self.create_grouped_autocommands(self, key, data)
     end
@@ -200,13 +250,19 @@ local Loader = {
     end
   end,
 
-  unpack_and_load_keymaps = function(key, data)
+  unpack_and_load_keymaps = function(self, key, data)
     if type(data) ~= 'table' then return end
 
     if type(key) == "number" then
+      self:stat('keymaps')
+
       vim.keymap.set(unpack(data))
     else
+      self:stat('keymaps_groups')
+
       for _, mapping in ipairs(data) do
+        self:stat('keymaps')
+
         vim.keymap.set(unpack(mapping))
       end
     end
@@ -216,7 +272,7 @@ local Loader = {
     -- load user defined keymaps
     if type(self.settings.keymaps) == "table" then
       for key, data in pairs(self.settings.keymaps) do
-        self.unpack_and_load_keymaps(key, data)
+        self.unpack_and_load_keymaps(self, key, data)
       end
     end
 
@@ -227,7 +283,7 @@ local Loader = {
 
         if type(keymaps) == 'table' then
           for key, data in pairs(keymaps) do
-            self.unpack_and_load_keymaps(key, data)
+            self.unpack_and_load_keymaps(self, key, data)
           end
         end
       end
@@ -239,6 +295,7 @@ local Loader = {
 
     for _, pack_data in pairs(self.settings.packs) do
       if type(pack_data.setup) == 'function' then
+        self:stat('packs_setup_functions')
         pack_data.setup(self)
       end
     end
@@ -261,7 +318,10 @@ local Loader = {
     self:load_vim_globals()
 
     -- run user main setup() function
-    if type(user_settings.setup) == 'function' then user_settings.setup(self) end
+    if type(user_settings.setup) == 'function' then
+      self:stat('global_setup_function')
+      user_settings.setup(self)
+    end
 
     -- ...
     self:load_keymaps()
@@ -273,6 +333,10 @@ local Loader = {
 
     -- ...
     self:log_reloading()
+    self:show_stats()
+
+    -- ..
+    self:check_health()
   end,
 
   add_pack = function(self, settings)
