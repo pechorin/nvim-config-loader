@@ -49,7 +49,20 @@ local Loader = {
   plugin_managers = {
     plug = {
       install = function()
-        -- TODO:
+        local data_dir = vim.fn.stdpath('data') .. '/site'
+        local not_installed = vim.fn.glob(data_dir .. '/autoload/plug.vim') == ''
+
+        if not_installed then
+          print('installing vim-plug to ' .. data_dir)
+
+          local install_cmd = "silent execute '!curl -fLo " .. data_dir
+            .. "/autoload/plug.vim --create-dirs  https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim'"
+
+          local autoinstall_plugins_cmd = "autocmd VimEnter * PlugInstall --sync | source $MYVIMRC"
+
+          vim.cmd(install_cmd)
+          vim.cmd(autoinstall_plugins_cmd)
+        end
       end,
 
       load_plugin = function(self, plugin_data)
@@ -97,6 +110,8 @@ local Loader = {
         if type(bundle_path) ~= "string" then return end
 
         local plug = self.plugin_managers.plug
+
+        plug.install()
 
         -- local vim = vim
         vim.o.rtp = vim.o.rtp .. bundle_path ..  '/Vundle.vim'

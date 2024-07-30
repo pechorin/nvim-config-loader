@@ -55,12 +55,13 @@ TODO
 
 ### TODO
 
-- [ ] comments
-- [ ] vimplug auto download & setup https://github.com/junegunn/vim-plug/wiki/tips
-- [ ] store saved settings status
 - [ ] vim-plug setup() function per plugin support (https://dev.to/vonheikemen/neovim-using-vim-plug-in-lua-3oom)
+- [ ] comments
+- [ ] api interface for settings
 - [ ] packs list
 - [ ] ?example folder
+- [*] vimplug auto download & setup https://github.com/junegunn/vim-plug/wiki/tips
+- [*] store saved settings stats
 - [*] public/private interface
 - [*] check all base settings supplied on setup()
 - [*] add_pack setup function()
