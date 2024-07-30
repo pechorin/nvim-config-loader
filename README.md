@@ -1,13 +1,27 @@
-# TODO: <name> - one-table modern nvim configuration loader / initializer
+# NvimConfigLoader - one-table modern nvim configuration loader / initializer
 
-## Features
+## Idea & Concept
 
-- Complete nvim configuration with one lua table
-- vim-plug support out of the box (auto downloading and installation)
+Where are many ways to setup your vim. We tried many of them. Each has own benefits.
+NvimConfigLoader is evolution of different approaches and represent combination of ideas into one compact vim configuration loader.
+
+Lets use lua only for configuration, but go further:
+
+- Use only lua tables and functions, no special vim function calls for basic configuration like vim options, autocommands or keymaps
+- Load config with one base file (but its okay to have some separate files for big configuration areas)
+- Combine configurations into packs (for example, pack for tree-sitter will contain tree-sitter specific plugins list, autocommands, mappings)
+- Dont warry about plugin managers, NvimConfigLoader should install and configure it for you
+- Nvim checkhealth support: will report if you miss some configurations (like forget to setup any autocommands)
+
+## Plugin managers support
+
+- [*] vim-plug auto downloading and installation
+- [ ] vim-plug plugin lazy-loading setup support
+- [ ] vim-pack
 
 ### Install & update
 
-Run bash script to download `tiny-nvim-loader.lua` and install to vim home directory:
+Run bash script to download `tiny-nvim-loader.lua` and install it to vim home directory:
 
 ```bash
 curl -fLo ~/.vim/lua/tiny-nvim-loader.lua --create-dirs \
@@ -28,36 +42,6 @@ TODO: add nvim home dir example
 
 ```lua
 require('tiny-nvim-loader'):setup {
-  colorscheme = 'default',
-  bg          = 'light',
-
-
-  vim_plug_bundle_path = '~/.vim/bundle',
-  main_settings_files  = {
-    -- additional .vim or .lua file configuration files
-  },
-
-  keymaps = {
-    group_name = {
-      -- keymaps list
-    }
-  },
-
-  autocommands = {
-    group_name = {
-      -- autocommands list
-    }
-  },
-
-  vim_plug_bundle = {},
-
-  vim_options = {},
-
-  vim_globals = {},
-
-  -- Custom setup for plugins
-  setup = function()
-  end,
 }
 ```
 
@@ -69,10 +53,13 @@ TODO
 
 ### TODO
 
+- [ ] public/private interface
 - [ ] comments
 - [ ] vimplug auto download & setup https://github.com/junegunn/vim-plug/wiki/tips
 - [ ] checkhealth with main settings detection
 - [ ] store saved settings status
+- [ ] add_config load_config setup({empty table}) support ?
 - [*] add flat lists loading (without grouping)
 - [ ] vim-plug setup() function per plugin support (https://dev.to/vonheikemen/neovim-using-vim-plug-in-lua-3oom)
-- [ ] example folder
+- [ ] packs list
+- [ ] ?example folder
