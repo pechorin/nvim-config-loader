@@ -247,26 +247,44 @@ local NvimConfigLoader = {
   end,
 
   setup = function(self, user_settings)
+    -- load settings from main file
     for k, v in pairs(user_settings) do
       if k ~= 'setup' then self.settings[k] = v end
     end
 
+    -- load settings from additional files
+    self:load_additional_config_files()
+
+    -- init plugin manager and load plugins
     for _, manager in pairs(self.plugin_managers) do manager.load(self) end
 
+    -- load main vim options
     self:load_vim_options()
     self:load_vim_globals()
 
+    -- run user main setup() function
     if type(user_settings.setup) == 'function' then user_settings.setup(self) end
 
+    -- ...
     self:load_keymaps()
     self:load_autocommands()
     self:load_colorscheme()
 
-    self:load_additional_config_files()
-
+    -- run packs setup() functions
     self:setup_packs()
 
+    -- ...
     self:log_reloading()
+  end,
+
+  add_pack = function(self, settings)
+    if type(settings) ~= 'table' then return end
+
+    for pack_name, pack_settings in pairs(settings) do
+      if type(pack_name) == 'string' and type(pack_settings) == 'table' then
+        self.settings.packs[pack_name] = pack_settings
+      end
+    end
   end
 }
 

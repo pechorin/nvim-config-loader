@@ -1,5 +1,7 @@
 # NvimConfigLoader - one-table modern nvim configuration loader / initializer
 
+TODO: logic map
+
 ## Idea & Concept
 
 Where are many ways to setup your vim. We tried many of them. Each has own benefits.
@@ -58,7 +60,7 @@ TODO
 - [ ] vimplug auto download & setup https://github.com/junegunn/vim-plug/wiki/tips
 - [ ] checkhealth with main settings detection
 - [ ] store saved settings status
-- [ ] add_config load_config setup({empty table}) support ?
+- [*] add_pack setup function()
 - [*] add flat lists loading (without grouping)
 - [ ] vim-plug setup() function per plugin support (https://dev.to/vonheikemen/neovim-using-vim-plug-in-lua-3oom)
 - [ ] packs list
