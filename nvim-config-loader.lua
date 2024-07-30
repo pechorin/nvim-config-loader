@@ -3,9 +3,7 @@ function _G.dump(...)
   print(unpack(objects))
 end
 
--- TODO: private / public interface
-
-local NvimConfigLoader = {
+local Loader = {
   profile_loads = 0,
 
   settings = {
@@ -239,7 +237,7 @@ local NvimConfigLoader = {
   setup_packs = function(self)
     if type(self.settings.packs) ~= 'table' then return end
 
-    for pack_name, pack_data in pairs(self.settings.packs) do
+    for _, pack_data in pairs(self.settings.packs) do
       if type(pack_data.setup) == 'function' then
         pack_data.setup(self)
       end
@@ -286,6 +284,16 @@ local NvimConfigLoader = {
       end
     end
   end
+}
+
+local NvimConfigLoader = {
+  setup = function(settings)
+    Loader:setup(settings)
+  end,
+
+  add_pack = function(settings)
+    Loader:add_pack(settings)
+  end,
 }
 
 return NvimConfigLoader

@@ -33,7 +33,7 @@ curl -fLo ~/.vim/lua/tiny-nvim-loader.lua --create-dirs \
 ### Usage in your init.lua
 
 ```lua
-require('tiny-nvim-loader'):setup {
+require('tiny-nvim-loader').setup {
   -- configuration here
 }
 ```
@@ -43,7 +43,7 @@ TODO: add nvim home dir example
 ### Configuration structure
 
 ```lua
-require('tiny-nvim-loader'):setup {
+require('tiny-nvim-loader').setup {
 }
 ```
 
@@ -55,7 +55,7 @@ TODO
 
 ### TODO
 
-- [ ] public/private interface
+- [*] public/private interface
 - [ ] comments
 - [ ] vimplug auto download & setup https://github.com/junegunn/vim-plug/wiki/tips
 - [ ] checkhealth with main settings detection
