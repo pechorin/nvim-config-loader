@@ -3,36 +3,52 @@ function _G.dump(...)
   print(unpack(objects))
 end
 
+-- TODO: comments
+---@class Settings
+local Settings = {
+  colorscheme             = 'default',
+  bg                      = 'light',
+
+  vim_plug_bundle_path    = nil,
+  vim_plug_bundle         = {},
+
+  additional_config_files = {},
+
+  -- TODO: predefine list of options?
+  vim_options             = {},
+  vim_globals             = {},
+
+  keymaps                 = {},
+  autocommands            = {},
+  packs                   = {},
+
+  show_stats              = false,
+}
+
+-- TODO: comments
+---@class PackSettings
+local PackSettings = {
+  vim_plug_bundle = {},
+  autocommands    = {},
+  keymaps         = {},
+  setup           = function() end,
+}
+
+---@class Loader
 local Loader = {
-  profile_loads = 0,
+  profile_loads = 0, -- TODO: rename and move to stats
 
-  settings = {
-    colorscheme             = 'default',
-    bg                      = 'light',
-
-    vim_plug_bundle_path    = nil,
-    vim_plug_bundle         = {},
-
-    additional_config_files = {},
-
-    vim_options             = {},
-    vim_globals             = {},
-    keymaps                 = {},
-    autocommands            = {},
-    packs                   = {},
-
-    show_stats              = false,
-  },
+  settings = Settings,
 
   stats = {
-    options = 0,
-    globals = 0,
-    plugins = 0,
-    plugins_groups = 0,
-    autocommands = 0,
-    autocommands_groups = 0,
-    keymaps = 0,
-    keymaps_groups = 0,
+    options               = 0,
+    globals               = 0,
+    plugins               = 0,
+    plugins_groups        = 0,
+    autocommands          = 0,
+    autocommands_groups   = 0,
+    keymaps               = 0,
+    keymaps_groups        = 0,
     global_setup_function = 0,
     packs_setup_functions = 0,
   },
@@ -331,20 +347,16 @@ local Loader = {
     -- load main vim options
     self:load_vim_options()
     self:load_vim_globals()
+    self:load_keymaps()
+    self:load_autocommands()
+    self:load_colorscheme()
 
     -- run user main setup() function
     if type(user_settings.setup) == 'function' then
       self:stat('global_setup_function')
       user_settings.setup(self)
     end
-
-    -- ...
-    self:load_keymaps()
-    self:load_autocommands()
-    self:load_colorscheme()
-
-    -- run packs setup() functions
-    self:setup_packs()
+    self:setup_packs() -- run packs setup() functions
 
     -- ...
     self:log_reloading()
@@ -365,11 +377,14 @@ local Loader = {
   end
 }
 
+---@class NvimConfigLoader
 local NvimConfigLoader = {
+  ---@param settings Settings setup vim with configuration table
   setup = function(settings)
     Loader:setup(settings)
   end,
 
+  ---@param settings PackSettings add pack settings to configuration
   add_pack = function(settings)
     Loader:add_pack(settings)
   end,
