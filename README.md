@@ -1,6 +1,4 @@
-# NvimConfigLoader - one-table modern nvim configuration loader / initializer
-
-TODO: logic map
+# NvimConfigLoader — one-lua-table nvim configuration loader and manager
 
 ## Idea & Concept
 
@@ -11,12 +9,12 @@ Lets use lua only for configuration, but go further!
 
 ## Features list
 
-- Use only lua tables and functions, no special vim function calls for basic configuration like vim options, autocommands or keymaps
-- Flat & grouped lists support for plugins, autocommands and keymaps
+- Use only lua tables and functions to define your vim config; no vim function calls required for basic configuration things like vim options, autocommands or keymaps
+- Flat & grouped lists support for plugins, autocommands and keymaps (groups will help your organize your keymaps, autocommands and plugins)
 - Load config with one base file (but its okay to have some separate files for big configuration areas)
-- Combine configurations into packs (for example, pack for tree-sitter will contain tree-sitter specific plugins list, autocommands, mappings)
-- Dont warry about plugin managers, NvimConfigLoader should install and configure it for you
-- Configuration statistics (how many options, keymaps, plugins was defined) to track and prevent missing configurations
+- Don't warry about plugin manager installation, NvimConfigLoader will download and install `vim-plug` for you 
+- Combine configurations into packs (example: pack for tree-sitter can contain tree-sitter specific plugins list, autocommands, mappings)
+- Configuration statistics to track and prevent missing configurations (example: forget to define any vim options or keymap)
 
 ## Plugin managers support
 
@@ -25,11 +23,13 @@ Lets use lua only for configuration, but go further!
 
 ### Install & update
 
-Run bash script to download `tiny-nvim-loader.lua` and install it to vim home directory:
+Run bash script to download `nvim-config-loader.lua` and install it to vim home directory:
+
+TODO: Ъ nvim variant
 
 ```bash
-curl -fLo ~/.vim/lua/tiny-nvim-loader.lua --create-dirs \
-  https://raw.githubusercontent.com/pechorin/tiny-nvim-loader/master/tiny-nvim-loader.lua;
+curl -fLo ~/.vim/lua/nvim-config-loader.lua --create-dirs \
+  https://raw.githubusercontent.com/pechorin/nvim-config-loader/master/nvim-config-loader.lua;
 ```
 
 ### Usage in your init.lua
@@ -40,6 +40,25 @@ require('nvim-config-loader').setup({
 })
 ```
 
+# Loading sequence
+
+Running `require('nvim-config-loader').setup(config)` will:
+
+```
+1. store user settings from `config`
+2. load and eval files from `additional_config_files`
+3. init plugin manager and load plugins from user settings and user packs
+4. load vim options
+5. load vim globals
+6. load keymaps
+7. load autocommands
+8. load colorscheme
+9. run user `setup()`
+10. run packs `setup()`
+11. show stats if required
+12. check health if required
+```
+
 TODO: add nvim home dir example
 
 ### Configuration structure
@@ -48,24 +67,6 @@ TODO: add nvim home dir example
 require('nvim-config-loader').setup({
   -- configuration here
 })
-```
-
-# Loading sequence
-
-```
--> require('nvim-config-loader').setup(config)
-    1. save user defined settings from defined config
-    2. load configs from additional_config_files
-    3. init plugin manager and load plugins from user settings and packs
-    4. load vim options
-    5. load vim globals
-    6. load keymaps
-    7. load autocommands
-    8. load colorscheme
-    9. run user setup()
-    10. run packs setup()
-    11. show stats if required
-    12 check health if required
 ```
 
 # Example
