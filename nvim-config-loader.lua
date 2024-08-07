@@ -170,10 +170,10 @@ local Loader = {
 
   log_reloading = function(self)
     if self.stats.loads > 1 then
-      print("reloading profile #" .. tostring(self.loads))
+      print("reloading profile #" .. tostring(self.stats.loads))
     end
 
-    self.loads = self.loads + 1
+    self.stats.loads = self.stats.loads + 1
   end,
 
   show_stats = function(self)

@@ -1,46 +1,35 @@
-# NvimConfigLoader — one-lua-table nvim configuration loader and manager
+# NvimConfigLoader
+
+> — Setup all your Vim with a single Lua table!
 
 ## Idea & Concept
 
-Where are many ways to setup your vim. We tried many of them. Each has own benefits.
-NvimConfigLoader is evolution of different approaches and represent combination of ideas into one compact vim configuration loader.
+There are many ways to set up your Vim. We have tried many of them, each with its own benefits. 
+NvimConfigLoader is a new attempt at different approaches and combinations of some ideas and concepts:
 
-Lets use lua only for configuration, but go further!
+- Lua for all configurations
+- Let's configure all things with lua tables! (where possible)
+- Simple Lua table api over vim calls like `vim.o`, `vim.g`, `vim.api.nvim_create_autocmd`, `vim.api.nvim_create_augroup`, `vim.keymap.set`
+- Configure plugins list with lua tables also! (vim-plug supported currently only)
+- Download and setup the plugin manager automatically 
 
-## Features list
+## Additional features list
 
-- Use only lua tables and functions to define your vim config; no vim function calls required for basic configuration things like vim options, autocommands or keymaps
 - Flat & grouped lists support for plugins, autocommands and keymaps (groups will help your organize your keymaps, autocommands and plugins)
-- Load config with one base file (but its okay to have some separate files for big configuration areas)
-- Don't warry about plugin manager installation, NvimConfigLoader will download and install `vim-plug` for you
-- Combine configurations into packs (example: pack for tree-sitter can contain tree-sitter specific plugins list, autocommands, mappings)
-- Configuration statistics to track and prevent missing configurations (example: forget to define any vim options or keymap)
+- Load config with one base file, but it's okay to have some separate files for large configuration areas
+- Combine configurations into packs (example: pack for tree-sitter can contain tree-sitter specific plugins list, autocommands and mappings) [alpha dashboard pack example](https://github.com/pechorin/nvim-config-loader/discussions/2#discussioncomment-10269362), [telescope pack example](https://github.com/pechorin/nvim-config-loader/discussions/2#discussioncomment-10269359)
+- Configuration statistics to track and prevent missing configurations (e.g., forgetting to define any Vim options or keymaps)
 
-## Plugin managers support
+## Installation
 
-- [x] vim-plug auto downloading and installation
-- [ ] vim-pack
-
-### Install & update
-
-Run bash script to download `nvim-config-loader.lua` and install it to vim home directory:
-
-TODO: Ъ nvim variant
+Run the bash script to download the `nvim-config-loader.lua` file to your home directory (`~/.vim/lua/`)
 
 ```bash
 curl -fLo ~/.vim/lua/nvim-config-loader.lua --create-dirs \
   https://raw.githubusercontent.com/pechorin/nvim-config-loader/master/nvim-config-loader.lua;
 ```
 
-### Usage in your init.lua
-
-```lua
-require('nvim-config-loader').setup({
-  -- configuration here
-})
-```
-
-# Loading sequence
+## Loading sequence
 
 Running `require('nvim-config-loader').setup(config)` will:
 
@@ -59,22 +48,128 @@ Running `require('nvim-config-loader').setup(config)` will:
 12. check health if required
 ```
 
-TODO: add nvim home dir example
-
-### Configuration structure
+## Usage & configuration structure
 
 ```lua
+
 require('nvim-config-loader').setup({
-  -- configuration here
+  -- vim colorscheme
+  colorscheme = 'default',
+
+  -- vim background
+  bg = 'light',
+
+  -- vim-plug bundle install dir
+  vim_plug_bundle_path  = '~/.vim/bundle',
+
+  -- vim-plug bundle
+  vim_plug_bundle = {
+    'author/plugin1', -- flat plugin list
+    'author/plugin2',
+    { 'author/plugin3', branch = 'v2' }, -- plugin with vim plug options like branch/rtp/do
+    group_name_1 = {  -- grouped plugin list
+      'author/plugin2',
+      'author/plugin3'
+    }
+  },
+
+  -- Additional .vim / .lua files with custom code placed in vim home dir
+  additional_config_files = {
+    'completion.lua', -- ~/.vim/completion.lua
+    'custom.vim'      -- ~/.vim/custom.vim
+  },
+
+  -- All global vim options (vim.opt.some_option)
+  vim_options = {
+    wildmenu    = true,
+    tabstop     = 2,
+    softtabstop = 2,
+    cursorline  = true,
+    -- ...
+  },
+
+  -- All vim global varitables (vim.g.variable or let g:variable)
+  vim_globals = {
+    mapleader = ',',              -- let mapleader =
+    minimap_git_colors = true,    -- let g:minimap_git_colors =
+    fzf_layout = { window = {} }, -- let g:fzf_layoyt = { "witdth":
+    -- ...
+  },
+
+  -- Keymappings (flat or grouped list)
+  -- format: { 'mode', 'key', 'command', options }
+  keymaps = {
+    -- flat keymaps
+    { 'n', '<leader>l', ':MinimapToggle<CR>', { noremap = true }},
+    { 'n', 'Q', '<Nop>', { desc = 'disable ex mode' }},
+
+    -- grouped list
+    navigation = { 
+      { 'n', 'T', ':tabnew<CR>' },
+      { 'n', 'Q', ':tabclose<CR>' },
+    },
+    -- ...
+  },
+
+  -- Vim autocomamnds (flat or grouped list)
+  -- Format: { event = '', pattern = '', command = '' }
+  autocommands = {
+    -- flat list
+    { event = { 'BufWritePre' }, pattern = '*', command = ":%s/\\s\\+$//e" },
+
+    -- grouped list
+    languages_settings = {
+      -- pretty colymn hi for yaml modes
+      { event = { 'FileType' }, pattern = 'yaml',       command = 'setlocal cursorcolumn' },
+      { event = { 'FileType' }, pattern = 'eruby.yaml', command = 'setlocal cursorcolumn' },
+    },
+    -- ...
+  },
+
+  -- Each pack can contain a setup() function, autocommands, keymaps) - this is another level of configuration nesting
+  packs = {
+    -- pack structure example
+    my_pack_1 = {
+      autcommands = {},
+      keymaps = {},
+      vim_plug_bundle = {},
+      setup = function() end
+    },
+
+    -- more real example, let's pack all tree-sitter settings!
+    tree_sitter = {
+      vim_plug_bundle = {
+        'nvim-treesitter/nvim-treesitter',
+        'nvim-treesitter/playground',
+      },
+      setup = function(self)
+        require('nvim-treesitter.configs').setup {
+          ensure_installed = { 'ruby', 'bash', 'lua' },
+          sync_install     = true,
+          auto_install     = true,
+          highlight        = { enable = true }
+        }
+      end
+    }
+  },
+
+  -- show configuration stats on load
+  show_stats = false,
 })
 ```
 
-# Example
+## Examples
 
-### TODO
+- [Configurations examples](https://github.com/pechorin/nvim-config-loader/discussions/1)
+- [Packs examples](https://github.com/pechorin/nvim-config-loader/discussions/2)
+
+## Plugin managers support
+
+- [x] vim-plug auto downloading and installation
+- [ ] vim-pack
+
+## TODO
 
 - [ ] predefine all vim options to provide autocompletion
-- [ ] comments
-- [ ] predefined packs?
-- [ ] predefined variant with dev bundle included?
+- [ ] additional plugin managers
 - [x] vimplug auto download & setup
