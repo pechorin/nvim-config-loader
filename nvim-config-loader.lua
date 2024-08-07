@@ -3,44 +3,37 @@ function _G.dump(...)
   print(unpack(objects))
 end
 
--- TODO: comments
 ---@class Settings
 local Settings = {
-  colorscheme             = 'default',
-  bg                      = 'light',
-
-  vim_plug_bundle_path    = nil,
-  vim_plug_bundle         = {},
-
-  additional_config_files = {},
-
-  -- TODO: predefine list of options?
-  vim_options             = {},
-  vim_globals             = {},
-
-  keymaps                 = {},
-  autocommands            = {},
-  packs                   = {},
-
-  show_stats              = false,
+  colorscheme             = 'default', -- vim colorscheme
+  bg                      = 'light',   -- vim background
+  vim_plug_bundle_path    = nil, -- vim-plug bundle install path like '~/.vim/bundle/'
+  vim_plug_bundle         = {},  -- vim-plug plugins list (flat or grouped list)
+  additional_config_files = {}, -- additional .vim / .lua files with custom code
+  vim_options             = {}, -- all global vim options (vim.opt.some_option)
+  vim_globals             = {}, -- all vim global varitables (vim.g.variable or let g:variable)
+  keymaps                 = {}, -- keymaps (flat or grouped list)
+  autocommands            = {}, -- autocomamnds (flat or grouped list)
+  packs                   = {}, -- packs (pack contain setup() function, autocommands, keymaps) - this is another level of configuration nesting
+  show_stats              = false, -- show configuration stats on load
 }
 
--- TODO: comments
 ---@class PackSettings
 local PackSettings = {
-  vim_plug_bundle = {},
-  autocommands    = {},
-  keymaps         = {},
-  setup           = function() end,
+  vim_plug_bundle = {}, -- vim-plug plugins list (flat or grouped list)
+  keymaps         = {}, -- keymaps (flat or grouped list)
+  autocommands    = {}, -- autocomamnds (flat or grouped list)
+  setup           = function() end, -- custom setup code for each pack
 }
 
 ---@class Loader
 local Loader = {
-  profile_loads = 0, -- TODO: rename and move to stats
-
+  -- all defined user settings
   settings = Settings,
 
+  -- internal stats, contain all defined options
   stats = {
+    loads                 = 0,
     options               = 0,
     globals               = 0,
     plugins               = 0,
@@ -53,6 +46,7 @@ local Loader = {
     packs_setup_functions = 0,
   },
 
+  -- track internal option stat
   stat = function(self, stat)
     self.stats[stat] = self.stats[stat] + 1
   end,
@@ -129,7 +123,7 @@ local Loader = {
 
         plug.install()
 
-        -- local vim = vim
+        local vim = vim
         vim.o.rtp = vim.o.rtp .. bundle_path ..  '/Vundle.vim'
         vim.call('plug#begin', bundle_path)
 
@@ -168,18 +162,18 @@ local Loader = {
     if type(opt) ~= "string" then return end
 
     -- Set colorscheme once at first profile load
-    if self.profile_loads == 0 then
+    if self.stats.loads == 0 then
       vim.opt.bg = self.settings.bg or 'light'
       vim.cmd.colorscheme(opt)
     end
   end,
 
   log_reloading = function(self)
-    if self.profile_loads > 1 then
-      print("reloading profile #" .. tostring(self.profile_loads))
+    if self.stats.loads > 1 then
+      print("reloading profile #" .. tostring(self.loads))
     end
 
-    self.profile_loads = self.profile_loads + 1
+    self.loads = self.loads + 1
   end,
 
   show_stats = function(self)
@@ -379,12 +373,14 @@ local Loader = {
 
 ---@class NvimConfigLoader
 local NvimConfigLoader = {
-  ---@param settings Settings setup vim with configuration table
+  ---@param settings Settings
+  ---setup vim with configuration table
   setup = function(settings)
     Loader:setup(settings)
   end,
 
-  ---@param settings PackSettings add pack settings to configuration
+  ---@param settings PackSettings
+  ---add pack settings to configuration
   add_pack = function(settings)
     Loader:add_pack(settings)
   end,

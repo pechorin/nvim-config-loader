@@ -12,7 +12,7 @@ Lets use lua only for configuration, but go further!
 - Use only lua tables and functions to define your vim config; no vim function calls required for basic configuration things like vim options, autocommands or keymaps
 - Flat & grouped lists support for plugins, autocommands and keymaps (groups will help your organize your keymaps, autocommands and plugins)
 - Load config with one base file (but its okay to have some separate files for big configuration areas)
-- Don't warry about plugin manager installation, NvimConfigLoader will download and install `vim-plug` for you 
+- Don't warry about plugin manager installation, NvimConfigLoader will download and install `vim-plug` for you
 - Combine configurations into packs (example: pack for tree-sitter can contain tree-sitter specific plugins list, autocommands, mappings)
 - Configuration statistics to track and prevent missing configurations (example: forget to define any vim options or keymap)
 
@@ -73,8 +73,8 @@ require('nvim-config-loader').setup({
 
 ### TODO
 
-- [ ] predefine all vim options to provide autocompletion?
+- [ ] predefine all vim options to provide autocompletion
 - [ ] comments
-- [ ] packs list
-- [ ] вариант загрузки с предустановленным dev pack'ом?
+- [ ] predefined packs?
+- [ ] predefined variant with dev bundle included?
 - [x] vimplug auto download & setup
